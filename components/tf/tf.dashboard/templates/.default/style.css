@@ -1,0 +1,63 @@
+P.highlight {
+    padding-left: 120px;
+}
+
+.db {
+}
+
+.tabs {
+    background-color: pink;
+    border-left: 1px solid pink;
+    border-bottom: 1px solid pink;
+
+}
+
+ul {
+    padding: 0px;
+    margin: 0px;
+}
+
+li.title {
+    cursor: pointer;
+    display: inline-block;
+    list-style-type: none;
+    padding: 5px;
+    margin: 0px;
+    background: #8ca0a9;
+}
+
+.tab {
+    padding: 5px;
+    text-align: justify;
+
+}
+
+.titles .active {
+    font-weight: bold;
+    background-color: pink;
+    border-top: 1px solid pink;
+}
+
+.titles {
+    border-left: 1px solid pink;
+    border-bottom: 1px solid pink;
+    width: initial;
+}
+
+.tablekpi {
+    border: 0.5px solid #F50;
+    border-color: black;
+    text-align: center;
+    font-size: 10px;
+}
+
+#result {
+    overflow: auto;
+}
+
+
+
+
+
+
+

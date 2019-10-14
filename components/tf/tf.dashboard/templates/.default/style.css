@@ -48,7 +48,15 @@ li.title {
     border: 0.5px solid #F50;
     border-color: black;
     text-align: center;
-    font-size: 10px;
+    font-size: 12px;
+}
+
+.tablekpititle {
+    width: 150px;
+    border: 0.5px solid #F50;
+    border-color: black;
+    text-align: center;
+    font-size: 12px;
 }
 
 #result {

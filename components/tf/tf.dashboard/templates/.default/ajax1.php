@@ -42,6 +42,8 @@ if (!$_REQUEST['detailedpers'] && !$_REQUEST['detailedweek']) {
 if (!Loader::includeModule('crm')) {
     echo "CRM модуль не установлен";
 }
+
+
 // выводим заголовок отчета
 if ($var == 2 || $var == 4) {
     echo "<table><tr><th class='tablekpititle'>Партнеры. KPI Ресурсного менеджера</th>";
@@ -78,11 +80,26 @@ if ($var==1) {
             $company = CCrmCompany::GetbyID($arVyvod['PROPERTY_152_VALUE']);
             if ($company['COMPANY_TYPE']=='SUPPLIER' || $company['COMPANY_TYPE']=='1') {
                 $resresult['resvyvod'] = $resresult['resvyvod'] + 1;
+                if ($resresult['shifr']['resvyvod']) {
+                    $resresult['shifr']['resvyvod'] = $resresult['shifr']['resvyvod'].",".$arVyvod['NAME'];
+                } else {
+                    $resresult['shifr']['resvyvod'] = $arVyvod['NAME'];
+                }
             } else {
-                $resresult['recvyvodfl'] = $resresult['recvyvodfl'] + 1;
+                $resresult['shifr']['recvyvodfl'] = $resresult['shifr']['recvyvodfl'] + 1;
+                if ($resresult['shifr']['recvyvodfl']) {
+                $resresult['shifr']['recvyvodfl'] = $resresult['shifr']['recvyvodfl'].",".$arVyvod['NAME'];
+                } else {
+                    $resresult['shifr']['recvyvodfl'] = $arVyvod['NAME'];
+                }
             }
         } else {
             $resresult['recvyvod'] = $resresult['recvyvod'] + 1;
+            if ($resresult['shifr']['recvyvod']) {
+                $resresult['shifr']['recvyvod'] = $resresult['shifr']['recvyvod'].",".$arVyvod['NAME'];
+            } else {
+                $resresult['shifr']['recvyvod'] = $arVyvod['NAME'];
+            }
         }
     }
     $comments=TimelineTable::getList(array(
@@ -97,8 +114,10 @@ if ($var==1) {
     while($ar = $comments->Fetch())
     {
         $created = $ar['CREATED']->toString();
-        if ($created < ConvertDateTime($to, "DD.MM.YYYY")." 23:59:59") {
-            if ($created > ConvertDateTime($from, "DD.MM.YYYY")." 23:59:59") {
+        if (strtotime($created) <= strtotime($to)) {
+            if (strtotime($created) >= strtotime($from)) {
+        //if ($created < ConvertDateTime($to, "DD.MM.YYYY")." 23:59:59") {
+        //    if ($created > ConvertDateTime($from, "DD.MM.YYYY")." 23:59:59") {
 
                 $company = CCrmCompany::GetbyID($ar['CRM_TIMELINE_ENTITY_TIMELINE_BINDINGS_ENTITY_ID']);
                 if ($company['COMPANY_TYPE'] == 'SUPPLIER' || $company['COMPANY_TYPE'] == '1') {
@@ -135,28 +154,71 @@ if ($var==1) {
         $exist = false;
 
     }
+
+    // участок по проверке внесения позиций
+    $contacts3 = CCrmContact::GetList(array("ID" => ASC), array(">=DATE_CREATE" => ConvertDateTime($from, "DD.MM.YYYY")." 00:00:00",
+        "<=DATE_CREATE" => ConvertDateTime($to, "DD.MM.YYYY")." 23:59:59"));
+    $entersexist = false;
+    if ($contacts3  = $contacts3->GetNext()) {
+        $entersexist = true;
+    }
+
+
+
+
+
     echo "<tr><th class='tablekpititle'>1. Поддержание активноси с партнерами (выводы / комментарии)</th>
-            <th class='tablekpi'>".($resresult['resvyvod']?$resresult['resvyvod']:0)."/".($resresult['rescall']?$resresult['rescall']:0)."
-            </th><th class='tablekpi'>".getbonustenprc($resresult['resvyvod'], $resresult['rescall'])."</th></tr>";
+            <td class='tablekpi'>".($resresult['resvyvod']?$resresult['resvyvod']:0)."/".($resresult['rescall']?$resresult['rescall']:0)."
+            </td><td class='tablekpi'>".getbonustenprc($resresult['resvyvod'], $resresult['rescall'])."</td></tr>";
     echo "<tr><th class='tablekpititle'>2. Привлечение нового партнера</th>
-            <th class='tablekpi'>".($resresult['newpartnres']?$resresult['newpartnres']:0)."
-            </th><th class='tablekpi'>".getbonusperc($resresult['newpartnres'], $bonustype, 'newpartn')."</th></tr>";
-    echo "<tr><th class='tablekpititle'>3. Число выведеннных специалистов</th>
-        <th class='tablekpi'>".($resresult['resvyvod']?$resresult['resvyvod']:0)."</th><th class='tablekpi'>".getbonusperc($resresult['resvyvod'], $bonustype, 'vyvodres')."</th></tr></table>";
+            <td class='tablekpi'>".($resresult['newpartnres']?$resresult['newpartnres']:0)."
+            </td><td class='tablekpi'>".getbonusperc($resresult['newpartnres'], $bonustype, 'newpartn')."</td></tr>";
+
+    echo "<tr><th class='tablekpititle'>3. Число выведеннных специалистов</th>";
+    if ($resresult['resvyvod']) {
+        echo "<td class='tablekpi'><a href=\"#\" onclick=\"alert('Вышедшие специалисты: ".$resresult['shifr']['resvyvod']."'); return false;\">".($resresult['resvyvod']?$resresult['resvyvod']:0)."</a></td>";
+    } else {
+        echo "<td class='tablekpi'>".($resresult['resvyvod']?$resresult['resvyvod']:0)."</td>";
+    }
+
+    echo "<td class='tablekpi'>".getbonusperc($resresult['resvyvod'], $bonustype, 'vyvodres')."</td></tr></table>";
     echo "<br>";
     echo "<table><tr><th class='tablekpititle'>Открытый рынок. KPI Рекрутеров</th><th class='tablekpi'>Количество</th><th class='tablekpi'>% от бонусного фонда</th></tr>";
-    echo "<tr><th class='tablekpititle'>1. Число выведеннных специалистов</th>
-        <th class='tablekpi'>".($resresult['recvyvod']?$resresult['recvyvod']:0)."</th><th class='tablekpi'>".getbonusperc($resresult['recvyvod'], $bonustype, 'vyvodrec')."</th></table>";
+    echo "<tr><th class='tablekpititle'>1. Число выведеннных специалистов</th>";
+    if ($resresult['recvyvod']) {
+        echo "<td class='tablekpi'><a href=\"#\" onclick=\"alert('Вышедшие специалисты: ".$resresult['shifr']['recvyvod']."'); return false;\">".($resresult['recvyvod']?$resresult['recvyvod']:0)."</a></td>";
+    } else {
+        echo "<td class='tablekpi'>".($resresult['recvyvod']?$resresult['recvyvod']:0)."</td>";
+    }
+    echo "<td class='tablekpi'>".getbonusperc($resresult['recvyvod'], $bonustype, 'vyvodrec')."</td>";
+    echo "<tr><th class='tablekpititle'>2. Факт внесения данных</th>";
+    if ($entersexist) {
+        echo "<td class='tablekpi'>Данные вносились</td>";
+        echo "<td class='tablekpi'>20%</td></table>";
+    } else {
+        echo "<td class='tablekpi'>Данные не вносились</td>";
+        echo "<td class='tablekpi'>Вы уволены!</td></table>";
+    }
+
+
+
+
     echo "<br>";
     echo "<table><tr><th class='tablekpititle'>Открытый рынок. KPI Белик</th><th class='tablekpi'>Количество</th><th class='tablekpi'>% от бонусного фонда</th></tr>";
     echo "<tr><th class='tablekpititle'>1. Поддержание активноси с фрилансерами (выводы / комментарии)</th>
-            <th class='tablekpi'>".($resresult['recvyvodfl']?$resresult['recvyvodfl']:0)."/".($resresult['reccallfl']?$resresult['reccallfl']:0)."
-            </th><th class='tablekpi'>".getbonustenprc($resresult['recvyvodfl'], $resresult['reccallfl'])."</th></tr>";
+            <td class='tablekpi'>".($resresult['recvyvodfl']?$resresult['recvyvodfl']:0)."/".($resresult['reccallfl']?$resresult['reccallfl']:0)."
+            </td><td class='tablekpi'>".getbonustenprc($resresult['recvyvodfl'], $resresult['reccallfl'])."</td></tr>";
     echo "<tr><th class='tablekpititle'>2. Привлечение нового фрилансера</th>
-            <th class='tablekpi'>".($resresult['newpartnfl']?$resresult['newpartnfl']:0)."
-            </th><th class='tablekpi'>".getbonusperc($resresult['newpartnfl'], $bonustype, 'newpartnfl')."</th></tr>";
-    echo "<tr><th class='tablekpititle'>3. Число выведеннных специалистов</th>
-        <th class='tablekpi'>".($resresult['recvyvodfl']?$resresult['recvyvodfl']:0)."</th><th class='tablekpi'>".getbonusperc($resresult['recvyvodfl'], $bonustype, 'vyvodfl')."</th></table>";
+            <td class='tablekpi'>".($resresult['newpartnfl']?$resresult['newpartnfl']:0)."
+            </td><td class='tablekpi'>".getbonusperc($resresult['newpartnfl'], $bonustype, 'newpartnfl')."</td></tr>";
+    echo "<tr><th class='tablekpititle'>3. Число выведеннных специалистов</th>";
+    if ($resresult['recvyvodfl']) {
+        echo "<td class='tablekpi'><a href=\"#\" onclick=\"alert('Вышедшие специалисты: ".$resresult['shifr']['recvyvodfl']."'); return false;\">".($resresult['recvyvodfl']?$resresult['recvyvodfl']:0)."</a></td><td class='tablekpi'>".getbonusperc($resresult['recvyvodfl'], $bonustype, 'vyvodfl')."</td></table>";
+
+    } else {
+        echo "<td class='tablekpi'>".($resresult['recvyvodfl']?$resresult['recvyvodfl']:0)."</td><td class='tablekpi'>".getbonusperc($resresult['recvyvodfl'], $bonustype, 'vyvodfl')."</td></table>";
+    }
+
 } elseif ($var==2) {
     $per = 0;
     foreach ($dates as $dateint) {
@@ -183,13 +245,30 @@ if ($var==1) {
                 if ($arVyvod['PROPERTY_152_VALUE']!=0) {
                     $company = CCrmCompany::GetbyID($arVyvod['PROPERTY_152_VALUE']);
                     if ($company['COMPANY_TYPE']=='SUPPLIER' || $company['COMPANY_TYPE']=='1') {
+                        if ($resresult['byper']['shifr'][$per]['resvyvod']) {
+                            $resresult['byper']['shifr'][$per]['resvyvod'] = $resresult['byper']['shifr'][$per]['resvyvod'].",".$arVyvod['NAME'];
+                        } else {
+                            $resresult['byper']['shifr'][$per]['resvyvod'] = $arVyvod['NAME'];
+                        }
+
                         $resresult['byper'][$per]['resvyvod'] = $resresult['byper'][$per]['resvyvod'] + 1;
                         $resresult['resvyvod'] = $resresult['resvyvod'] + 1;
                     } else {
+                        if ($resresult['byper']['shifr'][$per]['recvyvodfl']) {
+                            $resresult['byper']['shifr'][$per]['recvyvodfl'] = $resresult['byper']['shifr'][$per]['recvyvodfl'].",".$arVyvod['NAME'];
+                        } else {
+                            $resresult['byper']['shifr'][$per]['recvyvodfl'] = $arVyvod['NAME'];
+                        }
+
                         $resresult['byper'][$per]['recvyvodfl'] = $resresult['byper'][$per]['recvyvodfl'] + 1;
                         $resresult['recvyvodfl'] = $resresult['recvyvodfl'] + 1;
                     }
                 } else {
+                    if ($resresult['byper']['shifr'][$per]['recvyvod']) {
+                        $resresult['byper']['shifr'][$per]['recvyvod'] = $resresult['byper']['shifr'][$per]['recvyvod'].",".$arVyvod['NAME'];
+                    } else {
+                        $resresult['byper']['shifr'][$per]['recvyvod'] = $arVyvod['NAME'];
+                    }
                     $resresult['byper'][$per]['recvyvod'] = $resresult['byper'][$per]['recvyvod'] + 1;
                     $resresult['recvyvod'] = $resresult['recvyvod'] + 1;
                 }
@@ -253,22 +332,26 @@ if ($var==1) {
 
     echo "<tr><th class='tablekpititle'>1. Поддержание активноси с партнерами (выводы / комментарии)</th>";
     foreach ($dates as $key => $dateint) {
-        echo "<th class='tablekpi'>".($resresult['byper'][$key]['resvyvod']?$resresult['byper'][$key]['resvyvod']:0)."/".
-            ($resresult['byper'][$key]['rescall']?$resresult['byper'][$key]['rescall']:0)."</th>";
+        echo "<td class='tablekpi'>".($resresult['byper'][$key]['resvyvod']?$resresult['byper'][$key]['resvyvod']:0)."/".
+            ($resresult['byper'][$key]['rescall']?$resresult['byper'][$key]['rescall']:0)."</td>";
     }
-    echo  "<th class='tablekpi'>".($resresult['resvyvod']?$resresult['resvyvod']:0)."/".($resresult['rescall']?$resresult['rescall']:0)."
-            </th><th class='tablekpi'>".getbonustenprc($resresult['resvyvod'], $resresult['rescall'])."</th></tr>";
+    echo  "<td class='tablekpi'>".($resresult['resvyvod']?$resresult['resvyvod']:0)."/".($resresult['rescall']?$resresult['rescall']:0)."
+            </td><td class='tablekpi'>".getbonustenprc($resresult['resvyvod'], $resresult['rescall'])."</td></tr>";
     echo "<tr><th class='tablekpititle'>2. Привлечение нового партнера</th>";
     foreach ($dates as $key => $dateint) {
-        echo "<th class='tablekpi'>".($resresult['byper'][$key]['newpartnres']?$resresult['byper'][$key]['newpartnres']:0)."</th>";
+        echo "<td class='tablekpi'>".($resresult['byper'][$key]['newpartnres']?$resresult['byper'][$key]['newpartnres']:0)."</td>";
     }
-    echo "<th class='tablekpi'>".($resresult['newpartnres']?$resresult['newpartnres']:0)."
-            </th><th class='tablekpi'>".getbonusperc($resresult['newpartnres'], $bonustype, 'newpartn')."</th></tr>";
+    echo "<td class='tablekpi'>".($resresult['newpartnres']?$resresult['newpartnres']:0)."
+            </td><td class='tablekpi'>".getbonusperc($resresult['newpartnres'], $bonustype, 'newpartn')."</td></tr>";
     echo "<tr><th class='tablekpititle'>3. Число выведеннных специалистов</th>";
     foreach ($dates as $key => $dateint) {
-        echo "<th class='tablekpi'>".($resresult['byper'][$key]['resvyvod']?$resresult['byper'][$key]['resvyvod']:0)."</th>";
+        if ($resresult['byper'][$key]['resvyvod']) {
+            echo "<td class='tablekpi'><a href=\"#\" onclick=\"alert('Вышедшие специалисты: ".$resresult['byper']['shifr'][$key]['resvyvod']."'); return false;\">".($resresult['byper'][$key]['resvyvod']?$resresult['byper'][$key]['resvyvod']:0)."</a></td>";
+        } else {
+            echo "<td class='tablekpi'>".($resresult['byper'][$key]['resvyvod']?$resresult['byper'][$key]['resvyvod']:0)."</td>";
+        }
     }
-    echo "<th class='tablekpi'>".($resresult['resvyvod']?$resresult['resvyvod']:0)."</th><th class='tablekpi'>".getbonusperc($resresult['resvyvod'], $bonustype, 'vyvodres')."</th></tr></table>";
+    echo "<td class='tablekpi'>".($resresult['resvyvod']?$resresult['resvyvod']:0)."</td><td class='tablekpi'>".getbonusperc($resresult['resvyvod'], $bonustype, 'vyvodres')."</td></tr></table>";
     echo "<br>";
     echo "<table><tr><th class='tablekpititle'>Открытый рынок. KPI Рекрутеров</th>";
     foreach ($dates as $dateint) {
@@ -287,9 +370,13 @@ if ($var==1) {
     echo "<th class='tablekpi'>Общее количество</th><th class='tablekpi'>% от бонусного фонда</th></tr>";
     echo "<tr><th class='tablekpititle'>1. Число выведеннных специалистов</th>";
     foreach ($dates as $key => $dateint) {
-        echo "<th class='tablekpi'>".($resresult['byper'][$key]['recvyvod']?$resresult['byper'][$key]['recvyvod']:0)."</th>";
+        if ($resresult['byper'][$key]['recvyvod']) {
+            echo "<td class='tablekpi'><a href=\"#\" onclick=\"alert('Вышедшие специалисты: ".$resresult['byper']['shifr'][$key]['recvyvod']."'); return false;\">".($resresult['byper'][$key]['recvyvod']?$resresult['byper'][$key]['recvyvod']:0)."</a></td>";
+        } else {
+            echo "<td class='tablekpi'>".($resresult['byper'][$key]['recvyvod']?$resresult['byper'][$key]['recvyvod']:0)."</td>";
+        }
     }
-    echo  "<th class='tablekpi'>".($resresult['recvyvod']?$resresult['recvyvod']:0)."</th><th class='tablekpi'>".getbonusperc($resresult['recvyvod'], $bonustype, 'vyvodrec')."</th></table>";
+    echo  "<td class='tablekpi'>".($resresult['recvyvod']?$resresult['recvyvod']:0)."</td><td class='tablekpi'>".getbonusperc($resresult['recvyvod'], $bonustype, 'vyvodrec')."</td></table>";
     echo "<br>";
     echo "<table><tr><th class='tablekpititle'>Открытый рынок. KPI Белик</th>";
     foreach ($dates as $dateint) {
@@ -308,22 +395,26 @@ if ($var==1) {
     echo "<th class='tablekpi'>Общее количество</th><th class='tablekpi'>% от бонусного фонда</th></tr>";
     echo "<tr><th class='tablekpititle'>1. Поддержание активноси с фрилансерами (выводы / комментарии)</th>";
     foreach ($dates as $key => $dateint) {
-        echo "<th class='tablekpi'>".($resresult['byper'][$key]['recvyvodfl']?$resresult['byper'][$key]['recvyvodfl']:0)."/".
-            ($resresult['byper'][$key]['reccallfl']?$resresult['byper'][$key]['reccallfl']:0)."</th>";
+        echo "<td class='tablekpi'>".($resresult['byper'][$key]['recvyvodfl']?$resresult['byper'][$key]['recvyvodfl']:0)."/".
+            ($resresult['byper'][$key]['reccallfl']?$resresult['byper'][$key]['reccallfl']:0)."</td>";
     }
-    echo  "<th class='tablekpi'>".($resresult['recvyvodfl']?$resresult['recvyvodfl']:0)."/".($resresult['reccallfl']?$resresult['reccallfl']:0)."
-            </th><th class='tablekpi'>".getbonustenprc($resresult['recvyvodfl'], $resresult['reccallfl'])."</th></tr>";
+    echo  "<td class='tablekpi'>".($resresult['recvyvodfl']?$resresult['recvyvodfl']:0)."/".($resresult['reccallfl']?$resresult['reccallfl']:0)."
+            </td><td class='tablekpi'>".getbonustenprc($resresult['recvyvodfl'], $resresult['reccallfl'])."</td></tr>";
     echo "<tr><th class='tablekpititle'>2. Привлечение нового фрилансера</th>";
     foreach ($dates as $key => $dateint) {
-        echo "<th class='tablekpi'>".($resresult['byper'][$key]['newpartnfl']?$resresult['byper'][$key]['newpartnfl']:0)."</th>";
+        echo "<td class='tablekpi'>".($resresult['byper'][$key]['newpartnfl']?$resresult['byper'][$key]['newpartnfl']:0)."</td>";
     }
-    echo "<th class='tablekpi'>".($resresult['newpartnfl']?$resresult['newpartnfl']:0)."
-            </th><th class='tablekpi'>".getbonusperc($resresult['newpartnfl'], $bonustype, 'newpartnfl')."</th></tr>";
+    echo "<td class='tablekpi'>".($resresult['newpartnfl']?$resresult['newpartnfl']:0)."
+            </td><td class='tablekpi'>".getbonusperc($resresult['newpartnfl'], $bonustype, 'newpartnfl')."</td></tr>";
     echo "<tr><th class='tablekpititle'>3. Число выведеннных специалистов</th>";
     foreach ($dates as $key => $dateint) {
-        echo "<th class='tablekpi'>".($resresult['byper'][$key]['recvyvodfl']?$resresult['byper'][$key]['recvyvodfl']:0)."</th>";
+        if ($resresult['byper'][$key]['recvyvodfl']) {
+            echo "<td class='tablekpi'><a href=\"#\" onclick=\"alert('Вышедшие специалисты: ".$resresult['byper']['shifr'][$key]['recvyvodfl']."'); return false;\">".($resresult['byper'][$key]['recvyvodfl']?$resresult['byper'][$key]['recvyvodfl']:0)."</a></td>";
+        } else {
+            echo "<td class='tablekpi'>".($resresult['byper'][$key]['recvyvodfl']?$resresult['byper'][$key]['recvyvodfl']:0)."</td>";
+        }
     }
-    echo  "<th class='tablekpi'>".($resresult['recvyvodfl']?$resresult['recvyvodfl']:0)."</th><th class='tablekpi'>".getbonusperc($resresult['recvyvodfl'], $bonustype, 'vyvodfl')."</th></table>";
+    echo  "<td class='tablekpi'>".($resresult['recvyvodfl']?$resresult['recvyvodfl']:0)."</td><td class='tablekpi'>".getbonusperc($resresult['recvyvodfl'], $bonustype, 'vyvodfl')."</td></table>";
     //echo "<pre>";
     //print_r($resresult);
     //echo "</pre>";
@@ -354,9 +445,21 @@ if ($var==1) {
                 $resid = $dealinfo['UF_CRM_1566034018'];
             }
             if ($company['COMPANY_TYPE']=='SUPPLIER' || $company['COMPANY_TYPE']=='1') {
+                if ($resresult['pers']['shifr']['resvyvod'][$resid]) {
+                    $resresult['pers']['shifr']['resvyvod'][$resid] = $resresult['pers']['shifr']['resvyvod'][$resid].",".$arVyvod['NAME'];
+                } else {
+                    $resresult['pers']['shifr']['resvyvod'][$resid] = $arVyvod['NAME'];
+                }
+
                 $resresult['pers']['resvyvod'][$resid] = $resresult['pers']['resvyvod'][$resid] +1;
                 $resresult['resvyvod'] = $resresult['resvyvod'] + 1;
             } else {
+                if ($resresult['shifr']['recvyvodfl']) {
+                    $resresult['shifr']['recvyvodfl'] = $resresult['shifr']['recvyvodfl'].",".$arVyvod['NAME'];
+                } else {
+                    $resresult['shifr']['recvyvodfl'] = $arVyvod['NAME'];
+                }
+
                 $resresult['recvyvodfl'] = $resresult['recvyvodfl'] + 1;
             }
         } elseif($arVyvod['PROPERTY_143_VALUE']!=0) {
@@ -365,6 +468,11 @@ if ($var==1) {
             //print_r($deal);
             //echo "</pre>";
             $recid = $deal['ASSIGNED_BY_ID'];
+            if ($resresult['pers']['shifr']['recvyvod'][$recid]) {
+                $resresult['pers']['shifr']['recvyvod'][$recid] = $resresult['pers']['shifr']['recvyvod'][$recid].",".$arVyvod['NAME'];
+            } else {
+                $resresult['pers']['shifr']['recvyvod'][$recid] = $arVyvod['NAME'];
+            }
             $resresult['pers']['recvyvod'][$recid] = $resresult['pers']['recvyvod'][$recid] + 1;
             $resresult['recvyvod'] = $resresult['recvyvod'] + 1;
         }
@@ -385,8 +493,11 @@ if ($var==1) {
         //echo "</pre>";
         $created = $ar['CREATED']->toString();
         $author = $ar['AUTHOR_ID'];
-        if ($created < ConvertDateTime($to, "DD.MM.YYYY")." 23:59:59") {
-            if ($created > ConvertDateTime($from, "DD.MM.YYYY")." 23:59:59") {
+        if (strtotime($created) <= strtotime($to)) {
+            if (strtotime($created) >= strtotime($from)) {
+
+        //if ($created <= ConvertDateTime($to, "DD.MM.YYYY")." 00:00:00") {
+         //   if ($created >= ConvertDateTime($from, "DD.MM.YYYY")." 23:59:59") {
                 $company = CCrmCompany::GetbyID($ar['CRM_TIMELINE_ENTITY_TIMELINE_BINDINGS_ENTITY_ID']);
                 if ($company['COMPANY_TYPE'] == 'SUPPLIER' || $company['COMPANY_TYPE'] == '1') {
                     $resresult['pers']['rescall'][$author ] = $resresult['pers']['rescall'][$author ] + 1;
@@ -446,49 +557,70 @@ if ($var==1) {
 
     //echo  getname(30);
     echo "<tr><th class='tablekpititle'>1. Поддержание активноси с партнерами (выводы / комментарии), включая:</th>
-            <th class='tablekpi'>".($resresult['resvyvod']?$resresult['resvyvod']:0)."/".($resresult['rescall']?$resresult['rescall']:0)."
-            </th><th class='tablekpi'>".getbonustenprc($resresult['resvyvod'], $resresult['rescall'])."</th></tr>";
+            <td class='tablekpi'>".($resresult['resvyvod']?$resresult['resvyvod']:0)."/".($resresult['rescall']?$resresult['rescall']:0)."
+            </td><td class='tablekpi'>".getbonustenprc($resresult['resvyvod'], $resresult['rescall'])."</td></tr>";
     foreach ($vyvcom as $resman => $resvyvod) {
         echo "<tr><th class='tablekpititleright'>".getname($resman)."</th>
-            <th class='tablekpi'>".($resvyvod['vyv']?$resvyvod['vyv']:0)."/".($resvyvod['call']?$resvyvod['call']:0)."
-            </th><th class='tablekpi'>".getbonustenprc($resvyvod['vyv'], $resvyvod['call'])."</th></tr>";
+            <td class='tablekpi'>".($resvyvod['vyv']?$resvyvod['vyv']:0)."/".($resvyvod['call']?$resvyvod['call']:0)."
+            </td><td class='tablekpi'>".getbonustenprc($resvyvod['vyv'], $resvyvod['call'])."</td></tr>";
     }
     echo "<tr><th class='tablekpititle'>2. Привлечение нового партнера</th>
-            <th class='tablekpi'>".($resresult['newpartnres']?$resresult['newpartnres']:0)."
-            </th><th class='tablekpi'>".getbonusperc($resresult['newpartnres'], $bonustype, 'newpartn')."</th></tr>";
+            <td class='tablekpi'>".($resresult['newpartnres']?$resresult['newpartnres']:0)."
+            </td><td class='tablekpi'>".getbonusperc($resresult['newpartnres'], $bonustype, 'newpartn')."</td></tr>";
     foreach ($resresult['pers']['newpartnres'] as $resman => $resvyvod) {
-        echo "<tr><th class='tablekpititleright'>".getname($resman)."</th>
-            <th class='tablekpi'>".($resvyvod?$resvyvod:0)."
-            </th><th class='tablekpi'>".getbonusperc($resvyvod, $bonustype, 'newpartn')."</th></tr>";
+        echo "<tr><td class='tablekpititleright'>".getname($resman)."</td>
+            <td class='tablekpi'>".($resvyvod?$resvyvod:0)."
+            </td><td class='tablekpi'>".getbonusperc($resvyvod, $bonustype, 'newpartn')."</td></tr>";
     }
     echo "<tr><th class='tablekpititle'>3. Число выведеннных специалистов</th>
-        <th class='tablekpi'>".($resresult['resvyvod']?$resresult['resvyvod']:0)."</th><th class='tablekpi'>".getbonusperc($resresult['resvyvod'], $bonustype, 'vyvodres')."</th></tr>";
+        <td class='tablekpi'>".($resresult['resvyvod']?$resresult['resvyvod']:0)."</td><td class='tablekpi'>".getbonusperc($resresult['resvyvod'], $bonustype, 'vyvodres')."</td></tr>";
     foreach ($resresult['pers']['resvyvod'] as $resman => $resvyvod) {
-        echo "<tr><th class='tablekpititleright'>".getname($resman)."</th>
-            <th class='tablekpi'>".($resvyvod?$resvyvod:0)."
-            </th><th class='tablekpi'>".getbonusperc($resvyvod, $bonustype, 'newpartn')."</th></tr>";
+        if ($resvyvod) {
+            echo "<tr><th class='tablekpititleright'>".getname($resman)."</th>
+            <td class='tablekpi'><a href=\"#\" onclick=\"alert('Вышедшие специалисты: ".$resresult['pers']['shifr']['resvyvod'][$resman]."'); return false;\">".($resvyvod?$resvyvod:0)."
+            </a></td><td class='tablekpi'>".getbonusperc($resvyvod, $bonustype, 'newpartn')."</td></tr>";
+
+        } else {
+            echo "<tr><th class='tablekpititleright'>".getname($resman)."</th>
+            <td class='tablekpi'>".($resvyvod?$resvyvod:0)."
+            </td><td class='tablekpi'>".getbonusperc($resvyvod, $bonustype, 'newpartn')."</td></tr>";
+
+        }
+
     }
     echo "</table>";
     echo "<br>";
     echo "<table><tr><th class='tablekpititle'>Открытый рынок. KPI Рекрутеров</th><th class='tablekpi'>Количество</th><th class='tablekpi'>% от бонусного фонда</th></tr>";
     echo "<tr><th class='tablekpititle'>1. Число выведеннных специалистов</th>
-        <th class='tablekpi'>".($resresult['recvyvod']?$resresult['recvyvod']:0)."</th><th class='tablekpi'>".getbonusperc($resresult['recvyvod'], $bonustype, 'vyvodrec')."</th>";
-    foreach ($resresult['pers']['recvyvod'] as $resman => $resvyvod) {
-        echo "<tr><th class='tablekpititleright'>".getname($resman)."</th>
-            <th class='tablekpi'>".($resvyvod?$resvyvod:0)."
-            </th><th class='tablekpi'>".getbonusperc($resvyvod, $bonustype, 'newpartn')."</th></tr>";
+        <td class='tablekpi'>".($resresult['recvyvod']?$resresult['recvyvod']:0)."</td><td class='tablekpi'>".getbonusperc($resresult['recvyvod'], $bonustype, 'vyvodrec')."</td>";
+    foreach ($resresult['pers']['recvyvod'] as $resman => $recvyvod) {
+        if ($recvyvod) {
+            echo "<tr><th class='tablekpititleright'>".getname($resman)."</th>
+            <td class='tablekpi'><a href=\"#\" onclick=\"alert('Вышедшие специалисты: ".$resresult['pers']['shifr']['recvyvod'][$resman]."'); return false;\">".($recvyvod?$recvyvod:0)."
+            </a></td><td class='tablekpi'>".getbonusperc($recvyvod, $bonustype, 'newpartn')."</td></tr>";
+
+        } else {
+            echo "<tr><th class='tablekpititleright'>".getname($resman)."</th>
+            <td class='tablekpi'>".($recvyvod?$recvyvod:0)."
+            </td><td class='tablekpi'>".getbonusperc($recvyvod, $bonustype, 'newpartn')."</td></tr>";
+
+        }
     }
     echo "</table>";
     echo "<br>";
     echo "<table><tr><th class='tablekpititle'>Открытый рынок. KPI Белик</th><th class='tablekpi'>Количество</th><th class='tablekpi'>% от бонусного фонда</th></tr>";
     echo "<tr><th class='tablekpititle'>1. Поддержание активноси с фрилансерами (выводы / комментарии)</th>
-            <th class='tablekpi'>".($resresult['recvyvodfl']?$resresult['recvyvodfl']:0)."/".($resresult['reccallfl']?$resresult['reccallfl']:0)."
-            </th><th class='tablekpi'>".getbonustenprc($resresult['recvyvodfl'], $resresult['reccallfl'])."</th></tr>";
+            <td class='tablekpi'>".($resresult['recvyvodfl']?$resresult['recvyvodfl']:0)."/".($resresult['reccallfl']?$resresult['reccallfl']:0)."
+            </td><td class='tablekpi'>".getbonustenprc($resresult['recvyvodfl'], $resresult['reccallfl'])."</td></tr>";
     echo "<tr><th class='tablekpititle'>2. Привлечение нового фрилансера</th>
-            <th class='tablekpi'>".($resresult['newpartnfl']?$resresult['newpartnfl']:0)."
-            </th><th class='tablekpi'>".getbonusperc($resresult['newpartnfl'], $bonustype, 'newpartnfl')."</th></tr>";
-    echo "<tr><th class='tablekpititle'>3. Число выведеннных специалистов</th>
-        <th class='tablekpi'>".($resresult['recvyvodfl']?$resresult['recvyvodfl']:0)."</th><th class='tablekpi'>".getbonusperc($resresult['recvyvodfl'], $bonustype, 'vyvodfl')."</th></table>";
+            <td class='tablekpi'>".($resresult['newpartnfl']?$resresult['newpartnfl']:0)."
+            </td><td class='tablekpi'>".getbonusperc($resresult['newpartnfl'], $bonustype, 'newpartnfl')."</td></tr>";
+    echo "<tr><th class='tablekpititle'>3. Число выведеннных специалистов</th>";
+    if ($resresult['recvyvodfl']) {
+        echo "<td class='tablekpi'><a href=\"#\" onclick=\"alert('Вышедшие специалисты: ".$resresult['shifr']['recvyvodfl']."'); return false;\">".($resresult['recvyvodfl']?$resresult['recvyvodfl']:0)."</a></td><td class='tablekpi'>".getbonusperc($resresult['recvyvodfl'], $bonustype, 'vyvodfl')."</td></table>";
+    } else {
+        echo "<td class='tablekpi'>".($resresult['recvyvodfl']?$resresult['recvyvodfl']:0)."</td><td class='tablekpi'>".getbonusperc($resresult['recvyvodfl'], $bonustype, 'vyvodfl')."</td></table>";
+    }
 
 } else {
     $per = 0;
@@ -530,11 +662,23 @@ if ($var==1) {
             if ($arVyvod['PROPERTY_152_VALUE']!=0 && $arVyvod['PROPERTY_143_VALUE']!=0) {
                 $company = CCrmCompany::GetbyID($arVyvod['PROPERTY_152_VALUE']);
                 if ($company['COMPANY_TYPE']=='SUPPLIER' || $company['COMPANY_TYPE']=='1') {
+                    if ($resresult['byper']['shifr']['resvyvod']['pers'][$resid][$per]) {
+                        $resresult['byper']['shifr']['resvyvod']['pers'][$resid][$per] = $resresult['byper']['shifr']['resvyvod']['pers'][$resid][$per].",".$arVyvod['NAME'];
+                    } else {
+                        $resresult['byper']['shifr']['resvyvod']['pers'][$resid][$per] = $arVyvod['NAME'];
+                    }
+
+
                     $resresult['byper']['resvyvod']['pers'][$resid][$per] = $resresult['byper']['resvyvod']['pers'][$resid][$per] + 1;
                     $resresult['byper']['nopers'][$per]['resvyvod'] = $resresult['byper']['nopers'][$per]['resvyvod'] + 1;
                     $resresult['pers']['resvyvod'][$resid] = $resresult['pers']['resvyvod'][$resid] +1;
                     $resresult['resvyvod'] = $resresult['resvyvod'] + 1;
                 } elseif($arVyvod['PROPERTY_143_VALUE']!=0) {
+                    if ($resresult['byper']['shifr'][$per]['recvyvodfl']) {
+                        $resresult['byper']['shifr'][$per]['recvyvodfl'] = $resresult['byper']['shifr'][$per]['recvyvodfl'].$arVyvod['NAME'];
+                    } else {
+                        $resresult['byper']['shifr'][$per]['recvyvodfl'] = $arVyvod['NAME'];
+                    }
                     $resresult['byper'][$per]['recvyvodfl'] = $resresult['byper'][$per]['recvyvodfl'] + 1;
                     $resresult['recvyvodfl'] = $resresult['recvyvodfl'] + 1;
                 }
@@ -544,6 +688,12 @@ if ($var==1) {
                 //print_r($deal);
                 //echo "</pre>";
                 $recid = $deal['ASSIGNED_BY_ID'];
+                //$resresult['byper']['shifr']['reсvyvod']['pers'][$recid][$per] = $arVyvod['NAME'];
+                if ($resresult['byper']['shifr']['recvyvod']['pers'][$recid][$per]) {
+                    $resresult['byper']['shifr']['recvyvod']['pers'][$recid][$per] = $resresult['byper']['shifr']['recvyvod']['pers'][$recid][$per].",".$arVyvod['NAME'];
+                } else {
+                    $resresult['byper']['shifr']['recvyvod']['pers'][$recid][$per] = $arVyvod['NAME'];
+                }
                 $resresult['byper']['recvyvod']['pers'][$recid][$per] = $resresult['byper']['recvyvod']['pers'][$recid][$per] + 1;
                 $resresult['pers']['recvyvod'][$recid] = $resresult['pers']['recvyvod'][$recid] + 1;
                 $resresult['byper']['nopers'][$per]['recvyvod'] = $resresult['byper']['nopers'][$per]['recvyvod'] + 1;
@@ -613,9 +763,10 @@ if ($var==1) {
         $per++;
     }
 
-    /*echo "<pre>";
-    print_r($resresult);
-    echo "</pre>"; */
+    //echo "<pre>";
+    //print_r($resresult['byper']['shifr']['recvyvod']);
+    //print_r($resresult['byper']['recvyvod']['pers']);
+    //echo "</pre>";
 
 
     foreach ($resresult['pers']['resvyvod'] as $resman => $resvyvod) {
@@ -645,53 +796,59 @@ if ($var==1) {
 
     echo "<tr><th class='tablekpititle'>1. Поддержание активноси с партнерами (выводы / комментарии), включая</th>";
     foreach ($dates as $key => $dateint) {
-        echo "<th class='tablekpi'>".($resresult['byper']['nopers'][$key]['resvyvod']?$resresult['byper']['nopers'][$key]['resvyvod']:0)."/".
-            ($resresult['byper']['nopers'][$key]['rescall']?$resresult['byper']['nopers'][$key]['rescall']:0)."</th>";
+        echo "<td class='tablekpi'>".($resresult['byper']['nopers'][$key]['resvyvod']?$resresult['byper']['nopers'][$key]['resvyvod']:0)."/".
+            ($resresult['byper']['nopers'][$key]['rescall']?$resresult['byper']['nopers'][$key]['rescall']:0)."</td>";
     }
-    echo  "<th class='tablekpi'>".($resresult['resvyvod']?$resresult['resvyvod']:0)."/".($resresult['rescall']?$resresult['rescall']:0)."
-            </th><th class='tablekpi'>".getbonustenprc($resresult['resvyvod'], $resresult['rescall'])."</th></tr>";
+    echo  "<td class='tablekpi'>".($resresult['resvyvod']?$resresult['resvyvod']:0)."/".($resresult['rescall']?$resresult['rescall']:0)."
+            </td><td class='tablekpi'>".getbonustenprc($resresult['resvyvod'], $resresult['rescall'])."</td></tr>";
     foreach ($vyvcom['agg'] as $resman => $resvyvod) {
         echo "<tr><th class='tablekpititleright'>".getname($resman);
         echo "</th>";
         foreach ($dates as $key => $dateint) {
-            echo "<th class='tablekpi'>".
+            echo "<td class='tablekpi'>".
                 ($vyvcomdet[$resman][$key]['vyv']?$vyvcomdet[$resman][$key]['vyv']:0)."/".
                 ($vyvcomdet[$resman][$key]['call']?$vyvcomdet[$resman][$key]['call']:0)."
-            </th>";
+            </td>";
         }
-        echo "<th class='tablekpi'>".($resvyvod['vyv']?$resvyvod['vyv']:0)."/".($resvyvod['call']?$resvyvod['call']:0)."
-            </th><th class='tablekpi'>".getbonustenprc($resvyvod['vyv'], $resvyvod['call'])."</th></tr>";
+        echo "<td class='tablekpi'>".($resvyvod['vyv']?$resvyvod['vyv']:0)."/".($resvyvod['call']?$resvyvod['call']:0)."
+            </td><td class='tablekpi'>".getbonustenprc($resvyvod['vyv'], $resvyvod['call'])."</td></tr>";
     }
     echo "<tr><th class='tablekpititle'>2. Привлечение нового партнера</th>";
     foreach ($dates as $key => $dateint) {
-        echo "<th class='tablekpi'>".($resresult['byper']['nopers'][$key]['newpartnres']?$resresult['byper']['nopers'][$key]['newpartnres']:0)."</th>";
+        echo "<td class='tablekpi'>".($resresult['byper']['nopers'][$key]['newpartnres']?$resresult['byper']['nopers'][$key]['newpartnres']:0)."</td>";
     }
-    echo "<th class='tablekpi'>".($resresult['newpartnres']?$resresult['newpartnres']:0)."
-            </th><th class='tablekpi'>".getbonusperc($resresult['newpartnres'], $bonustype, 'newpartn')."</th></tr>";
+    echo "<td class='tablekpi'>".($resresult['newpartnres']?$resresult['newpartnres']:0)."
+            </td><td class='tablekpi'>".getbonusperc($resresult['newpartnres'], $bonustype, 'newpartn')."</td></tr>";
     foreach ($resresult['pers']['newpartnres'] as $resman => $resvyvod) {
         echo "<tr><th class='tablekpititleright'>".getname($resman)."</th>";
         foreach ($dates as $key => $dateint) {
-            echo "<th class='tablekpi'>".
+            echo "<td class='tablekpi'>".
                 ($resresult['byper']['newpartnres']['pers'][$resman][$key]?$resresult['byper']['newpartnres']['pers'][$resman][$key]:0)."
-            </th>";
+            </td>";
         }
-        echo "<th class='tablekpi'>".($resvyvod?$resvyvod:0)."
-            </th><th class='tablekpi'>".getbonusperc($resvyvod, $bonustype, 'newpartn')."</th></tr>";
+        echo "<td class='tablekpi'>".($resvyvod?$resvyvod:0)."
+            </td><td class='tablekpi'>".getbonusperc($resvyvod, $bonustype, 'newpartn')."</td></tr>";
     }
     echo "<tr><th class='tablekpititle'>3. Число выведеннных специалистов</th>";
     foreach ($dates as $key => $dateint) {
-        echo "<th class='tablekpi'>".($resresult['byper']['nopers'][$key]['resvyvod']?$resresult['byper']['nopers'][$key]['resvyvod']:0)."</th>";
+        echo "<td class='tablekpi'>".($resresult['byper']['nopers'][$key]['resvyvod']?$resresult['byper']['nopers'][$key]['resvyvod']:0)."</td>";
     }
-    echo "<th class='tablekpi'>".($resresult['resvyvod']?$resresult['resvyvod']:0)."</th><th class='tablekpi'>".getbonusperc($resresult['resvyvod'], $bonustype, 'vyvodres')."</th></tr>";
+    echo "<td class='tablekpi'>".($resresult['resvyvod']?$resresult['resvyvod']:0)."</td><td class='tablekpi'>".getbonusperc($resresult['resvyvod'], $bonustype, 'vyvodres')."</td></tr>";
     foreach ($resresult['pers']['resvyvod'] as $resman => $resvyvod) {
         echo "<tr><th class='tablekpititleright'>".getname($resman)."</th>";
         foreach ($dates as $key => $dateint) {
-            echo "<th class='tablekpi'>".
-                ($resresult['byper']['resvyvod']['pers'][$resman][$key]?$resresult['byper']['resvyvod']['pers'][$resman][$key]:0)."
-            </th>";
+            if ($resresult['byper']['resvyvod']['pers'][$resman][$key]) {
+                echo "<td class='tablekpi'><a href=\"#\" onclick=\"alert('Вышедшие специалисты: " . $resresult['byper']['shifr']['resvyvod']['pers'][$resman][$key] . "'); return false;\">" .
+                        ($resresult['byper']['resvyvod']['pers'][$resman][$key] ? $resresult['byper']['resvyvod']['pers'][$resman][$key] : 0) . "
+                        </a></td>";
+                } else {
+                    echo "<td class='tablekpi'>".
+                        ($resresult['byper']['resvyvod']['pers'][$resman][$key]?$resresult['byper']['resvyvod']['pers'][$resman][$key]:0)."
+                    </td>";
+                }
         }
-        echo "<th class='tablekpi'>".($resvyvod?$resvyvod:0)."
-            </th><th class='tablekpi'>".getbonusperc($resvyvod, $bonustype, 'newpartn')."</th></tr>";
+        echo "<td class='tablekpi'>".($resvyvod?$resvyvod:0)."
+            </td><td class='tablekpi'>".getbonusperc($resvyvod, $bonustype, 'newpartn')."</td></tr>";
     }
     echo "</table>";
     echo "<br>";
@@ -712,18 +869,29 @@ if ($var==1) {
     echo "<th class='tablekpi'>Общее количество</th><th class='tablekpi'>% от бонусного фонда</th></tr>";
     echo "<tr><th class='tablekpititle'>1. Число выведеннных специалистов</th>";
     foreach ($dates as $key => $dateint) {
-        echo "<th class='tablekpi'>".($resresult['byper']['nopers'][$key]['recvyvod']?$resresult['byper']['nopers'][$key]['recvyvod']:0)."</th>";
+        echo "<td class='tablekpi'>".($resresult['byper']['nopers'][$key]['recvyvod']?$resresult['byper']['nopers'][$key]['recvyvod']:0)."</td>";
     }
     echo  "<th class='tablekpi'>".($resresult['recvyvod']?$resresult['recvyvod']:0)."</th><th class='tablekpi'>".getbonusperc($resresult['recvyvod'], $bonustype, 'vyvodrec')."</th></tr>";
     foreach ($resresult['pers']['recvyvod'] as $resman => $resvyvod) {
         echo "<tr><th class='tablekpititleright'>".getname($resman)."</th>";
         foreach ($dates as $key => $dateint) {
-            echo "<th class='tablekpi'>".
-                ($resresult['byper']['recvyvod']['pers'][$resman][$key]?$resresult['byper']['recvyvod']['pers'][$resman][$key]:0)."
-            </th>";
+            if ($resresult['byper']['recvyvod']['pers'][$resman][$key]) {
+                echo "<td class='tablekpi'><a href=\"#\" onclick=\"alert('Вышедшие специалисты: " . $resresult['byper']['shifr']['recvyvod']['pers'][$resman][$key] . "'); return false;\">" .
+                    ($resresult['byper']['recvyvod']['pers'][$resman][$key] ? $resresult['byper']['recvyvod']['pers'][$resman][$key] : 0) . "
+                        </a></td>";
+            } else {
+                echo "<td class='tablekpi'>".
+                    ($resresult['byper']['recvyvod']['pers'][$resman][$key]?$resresult['byper']['recvyvod']['pers'][$resman][$key]:0)."
+                    </td>";
+            }
         }
-        echo "<th class='tablekpi'>".($resvyvod?$resvyvod:0)."
-            </th><th class='tablekpi'>".getbonusperc($resvyvod, $bonustype, 'newpartn')."</th></tr>";
+        /*foreach ($dates as $key => $dateint) {
+            echo "<td class='tablekpi'>".
+                ($resresult['byper']['recvyvod']['pers'][$resman][$key]?$resresult['byper']['recvyvod']['pers'][$resman][$key]:0)."
+            </td>";
+        } */
+        echo "<td class='tablekpi'>".($resvyvod?$resvyvod:0)."
+            </td><td class='tablekpi'>".getbonusperc($resvyvod, $bonustype, 'newpartn')."</td></tr>";
     }
     echo "</table>";
     echo "<br>";
@@ -744,22 +912,28 @@ if ($var==1) {
     echo "<th class='tablekpi'>Общее количество</th><th class='tablekpi'>% от бонусного фонда</th></tr>";
     echo "<tr><th class='tablekpititle'>1. Поддержание активноси с фрилансерами (выводы / комментарии)</th>";
     foreach ($dates as $key => $dateint) {
-        echo "<th class='tablekpi'>".($resresult['byper'][$key]['recvyvodfl']?$resresult['byper'][$key]['recvyvodfl']:0)."/".
-            ($resresult['byper'][$key]['reccallfl']?$resresult['byper'][$key]['reccallfl']:0)."</th>";
+        echo "<td class='tablekpi'>".($resresult['byper'][$key]['recvyvodfl']?$resresult['byper'][$key]['recvyvodfl']:0)."/".
+            ($resresult['byper'][$key]['reccallfl']?$resresult['byper'][$key]['reccallfl']:0)."</td>";
     }
-    echo  "<th class='tablekpi'>".($resresult['recvyvodfl']?$resresult['recvyvodfl']:0)."/".($resresult['reccallfl']?$resresult['reccallfl']:0)."
-            </th><th class='tablekpi'>".getbonustenprc($resresult['recvyvodfl'], $resresult['reccallfl'])."</th></tr>";
+    echo  "<td class='tablekpi'>".($resresult['recvyvodfl']?$resresult['recvyvodfl']:0)."/".($resresult['reccallfl']?$resresult['reccallfl']:0)."
+            </td><th class='tablekpi'>".getbonustenprc($resresult['recvyvodfl'], $resresult['reccallfl'])."</th></tr>";
     echo "<tr><th class='tablekpititle'>2. Привлечение нового фрилансера</th>";
     foreach ($dates as $key => $dateint) {
-        echo "<th class='tablekpi'>".($resresult['byper'][$key]['newpartnfl']?$resresult['byper'][$key]['newpartnfl']:0)."</th>";
+        echo "<td class='tablekpi'>".($resresult['byper'][$key]['newpartnfl']?$resresult['byper'][$key]['newpartnfl']:0)."</td>";
     }
-    echo "<th class='tablekpi'>".($resresult['newpartnfl']?$resresult['newpartnfl']:0)."
-            </th><th class='tablekpi'>".getbonusperc($resresult['newpartnfl'], $bonustype, 'newpartnfl')."</th></tr>";
+    echo "<td class='tablekpi'>".($resresult['newpartnfl']?$resresult['newpartnfl']:0)."
+            </td><td class='tablekpi'>".getbonusperc($resresult['newpartnfl'], $bonustype, 'newpartnfl')."</td></tr>";
     echo "<tr><th class='tablekpititle'>3. Число выведеннных специалистов</th>";
     foreach ($dates as $key => $dateint) {
-        echo "<th class='tablekpi'>".($resresult['byper'][$key]['recvyvodfl']?$resresult['byper'][$key]['recvyvodfl']:0)."</th>";
+        if ($resresult['byper'][$key]['recvyvodfl']) {
+            echo "<td class='tablekpi'><a href=\"#\" onclick=\"alert('Вышедшие специалисты: ".$resresult['byper']['shifr'][$key]['recvyvodfl']."'); return false;\">".($resresult['byper'][$key]['recvyvodfl']?$resresult['byper'][$key]['recvyvodfl']:0)."</a></td>";
+        } else {
+            echo "<td class='tablekpi'>".($resresult['byper'][$key]['recvyvodfl']?$resresult['byper'][$key]['recvyvodfl']:0)."</td>";
+        }
+
+        //echo "<td class='tablekpi'>".($resresult['byper'][$key]['recvyvodfl']?$resresult['byper'][$key]['recvyvodfl']:0)."</td>";
     }
-    echo  "<th class='tablekpi'>".($resresult['recvyvodfl']?$resresult['recvyvodfl']:0)."</th><th class='tablekpi'>".getbonusperc($resresult['recvyvodfl'], $bonustype, 'vyvodfl')."</th></table>";
+    echo  "<td class='tablekpi'>".($resresult['recvyvodfl']?$resresult['recvyvodfl']:0)."</td><td class='tablekpi'>".getbonusperc($resresult['recvyvodfl'], $bonustype, 'vyvodfl')."</td></table>";
 
 }
 

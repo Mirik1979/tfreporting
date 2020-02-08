@@ -14,6 +14,7 @@ CJSCore::Init(array("jquery"));
 <ul class="titles">
     <li class="title active">КПЭ ресурсного центра</li>
     <li class="title">Динамика закрытия вакансий</li>
+    <li class="title">Отчет по собесам</li>
 </ul>
 <div class="tabs">
     <div class="tab active">
@@ -38,6 +39,20 @@ CJSCore::Init(array("jquery"));
             </form>
             <!-- <button id="button-a">Выгрузить в Excel</button> -->
             <div id="result1"></div>
+
+        </div>
+    </div>
+    <div class="tab">
+        <!-- <b>.toggle()</b> -->
+        <div id="content">
+            <p>Задайте параметры вызова отчета по собеседованиям</p>
+            <form name="test" id="report2" method="" action="">
+                <label>Дата начала<input type="text" value="01.10.2019" id="datebegin" name="datebegin" onclick="BX.calendar({node: this, field: this, bTime: false});"></label>
+                <label>Дата окончания<input type="text" value="" id="dateend" name="dateend" onclick="BX.calendar({node: this, field: this, bTime: false});"></label>
+                <p><input type="submit" value="Сформировать с выгрузкой в Excel"/></p>
+            </form>
+            <!-- <button id="button-a">Выгрузить в Excel</button> -->
+            <div id="result2"></div>
 
         </div>
     </div>
@@ -92,7 +107,7 @@ CJSCore::Init(array("jquery"));
                 }
             });
 
-            console.log(myTableArray);
+            //console.log(myTableArray);
             //let jsonarr = JSON.stringify(myTableArray);
             //console.log(jsonarr);
             var tabulardata2 = [];
@@ -144,6 +159,7 @@ CJSCore::Init(array("jquery"));
                 })
             })
 
+
         $("#report1").submit(function () {
             event.preventDefault(); // отменяем действие события по умолчанию
             var formData = $(this).serialize(); // создаем переменную, которая содержит закодированный набор элементов формы в виде строки
@@ -172,6 +188,62 @@ CJSCore::Init(array("jquery"));
                     var myTableArray = [];
 
                     $("table#vacancylist tr").each(function() {
+                        var arrayOfThisRow = [];
+
+                        var tableHeader = $(this).find('th');
+                        if (tableHeader.length > 0) {
+                            tableHeader.each(function() {
+                                var h={};
+                                h.text=$(this).text();
+                                //let a = $(this).text();
+                                arrayOfThisRow.push(h);
+                            });
+                            myTableArray.push(arrayOfThisRow);
+                        }
+
+
+                        var tableData = $(this).find('td');
+                        if (tableData.length > 0) {
+                            tableData.each(function() {
+                                var a={};
+                                a.text=$(this).text();
+                                //let a = $(this).text();
+                                arrayOfThisRow.push(a);
+                            });
+                            myTableArray.push(arrayOfThisRow);
+                        }
+                    });
+
+                    //console.log(myTableArray);
+                    var tabulardata2 = [];
+
+                    tabulardata2[0] = {
+                        sheetname: "Sheet1",
+                        data: myTableArray
+                    };
+
+
+
+                    //console.log(tabulardata2);
+
+                    var options = {
+                        fileName:"File Name"
+                    };
+                    Jhxlsx.export(tabulardata2, options);
+
+            })
+        })
+
+        $("#report2").submit(function () {
+            event.preventDefault(); // отменяем действие события по умолчанию
+            var formData = $(this).serialize(); // создаем переменную, которая содержит закодированный набор элементов формы в виде строки
+            console.log(formData);
+            $.get("<?echo CUtil::JSEscape($this->GetFolder()."/ajax3.php")?>",
+                formData, function (data) { //  передаем и загружаем данные с сервера с помощью HTTP запроса методом GET
+                    $("#result2").html(data); // вставляем в элемент <div> данные, полученные от сервера
+                    var myTableArray = [];
+
+                    $("table#sobeslist tr").each(function() {
                         var arrayOfThisRow = [];
 
                         var tableHeader = $(this).find('th');
